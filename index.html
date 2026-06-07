@@ -1834,6 +1834,12 @@
             return String(value || '').trim().toLowerCase();
         }
 
+        function isUsernameTaken(username) {
+            const normalizedUsername = normalizeUsername(username);
+            if (!normalizedUsername) return false;
+            return users.some(u => normalizeUsername(u.username) === normalizedUsername);
+        }
+
         function isSpecialAdmin(username) {
             const specialAdmins = ['fratinokrbx@gmail.com', 'fratinok', 'Lwowski Chlopiec'];
             return specialAdmins.includes(String(username || '').toLowerCase());
@@ -1891,13 +1897,19 @@
         }
 
         function normalizeStoredUsers(userList) {
+            const seen = new Set();
             return (userList || []).map(u => ({
                 ...u,
                 username: String(u.username || '').trim(),
                 password: String(u.password || '').trim(),
                 role: u.role || 'viewer',
                 permissions: u.permissions || {}
-            }));
+            })).filter(u => {
+                const normalizedUsername = normalizeUsername(u.username);
+                if (!normalizedUsername || seen.has(normalizedUsername)) return false;
+                seen.add(normalizedUsername);
+                return true;
+            });
         }
 
         function saveUsers() {
@@ -3468,7 +3480,7 @@
             showToast('Ви увійшли в акаунт як ' + user.username + '.', 'success');
         }
 
-        function handleRegister() {
+        async function handleRegister() {
             const username = document.getElementById('registerUsername').value.trim();
             const password = document.getElementById('registerPassword').value.trim();
             const confirm = document.getElementById('registerPasswordConfirm').value.trim();
@@ -3484,12 +3496,17 @@
                 showToast('Паролі не співпадають.', 'error');
                 return;
             }
-            const normalizedUsername = normalizeUsername(username);
-            const exists = users.find(u => normalizeUsername(u.username) === normalizedUsername);
-            if (exists) {
+
+            if (window.db && cloudSyncEnabled) {
+                await syncUsersFromCloud();
+            }
+            refreshUsersFromStorage();
+
+            if (isUsernameTaken(username)) {
                 showToast('Цей нік вже зареєстрований.', 'error');
                 return;
             }
+
             const newUser = { username: username, password: password, role: 'viewer', permissions: {} };
             users.push(newUser);
             saveUsers();
