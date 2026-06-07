@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
@@ -1428,7 +1428,7 @@
     </div>
 
     <!-- Registration Modal (full-screen style) -->
-    <div class="modal-overlay" id="loginModalOverlay" style="display:none; z-index: 100;">
+    <div class="modal-overlay" id="loginModalOverlay" style="display:none; z-index: 100;" onclick="closeLoginModal()">
         <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 100vw; width: 100vw; height: 100vh; padding: 40px 60px; box-sizing: border-box; overflow-y: auto; display:flex; align-items:center; justify-content:center;">
             <div style="width: min(720px, 96%); background: linear-gradient(180deg, rgba(6,8,12,0.98), rgba(10,12,18,0.99)); border:1px solid rgba(255,255,255,0.04); border-radius: 20px; padding: 28px; box-shadow: 0 40px 120px rgba(0,0,0,0.7);">
                 <div class="modal-header-wrapper" style="margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; gap:12px;">
@@ -1840,9 +1840,26 @@
             return users.some(u => normalizeUsername(u.username) === normalizedUsername);
         }
 
+        function markAuthPromptShown() {
+            try {
+                sessionStorage.setItem('courtAuthPromptHidden', '1');
+            } catch (e) {
+                console.warn('Could not save auth prompt state', e);
+            }
+        }
+
+        function isAuthPromptAllowed() {
+            try {
+                return sessionStorage.getItem('courtAuthPromptHidden') !== '1';
+            } catch (e) {
+                return true;
+            }
+        }
+
         function isSpecialAdmin(username) {
             const specialAdmins = ['fratinokrbx@gmail.com', 'fratinok', 'Lwowski Chlopiec'];
-            return specialAdmins.includes(String(username || '').toLowerCase());
+            const normalizedUsername = String(username || '').trim().toLowerCase();
+            return specialAdmins.some(adminName => String(adminName).trim().toLowerCase() === normalizedUsername);
         }
 
         function isAdmin() {
@@ -3355,6 +3372,7 @@
             const overlay = document.getElementById('loginModalOverlay');
             if (!overlay) return;
             overlay.classList.remove('active');
+            markAuthPromptShown();
             setTimeout(() => { overlay.style.display = 'none'; }, 360);
         }
 
@@ -3619,12 +3637,13 @@
             // when the current session is explicitly the special admin email.
             updateUserUI();
 
-            // Якщо користувач не авторизований, показуємо форму входу або реєстрації при завантаженні.
-            if (!currentUser) {
-                const hasRegisteredUser = users && users.some(u => !isSpecialAdmin(u.username));
-                const defaultAuthTab = hasRegisteredUser ? 'login' : 'register';
-                setTimeout(() => {
-                    openLoginModal(defaultAuthTab);
+// Якщо користувач не авторизований, показуємо форму входу або реєстрації при першому завантаженні.
+                if (!currentUser && isAuthPromptAllowed()) {
+                    const hasRegisteredUser = users && users.some(u => !isSpecialAdmin(u.username));
+                    const defaultAuthTab = hasRegisteredUser ? 'login' : 'register';
+                    setTimeout(() => {
+                        openLoginModal(defaultAuthTab);
+                        markAuthPromptShown();
                 }, 300);
             }
 
