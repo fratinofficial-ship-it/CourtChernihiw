@@ -1450,7 +1450,7 @@
                 <div id="registerTabContent" style="display:block;">
                     <div style="display:flex; flex-direction:column; gap:14px; margin-top:6px;">
                         <label style="color:var(--text-main); font-weight:700;">Нік</label>
-                        <input type="text" id="registerUsername" placeholder="Введіть нік" oninput="this.value=this.value.replace(/[^A-Za-z]/g,'')" style="padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); background:rgba(0,0,0,0.45); color:#fff; font-size:1rem;">
+                        <input type="text" id="registerUsername" placeholder="Введіть нік" style="padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); background:rgba(0,0,0,0.45); color:#fff; font-size:1rem;">
 
                         <label style="color:var(--text-main); font-weight:700;">Пароль</label>
                     <div class="password-field-wrapper">
@@ -1476,7 +1476,7 @@
                 <div id="loginTabContent" style="display:none;">
                     <div style="display:flex; flex-direction:column; gap:14px; margin-top:6px;">
                         <label style="color:var(--text-main); font-weight:700;">Нік</label>
-                        <input type="text" id="loginUsername" placeholder="Введіть нік" oninput="this.value=this.value.replace(/[^A-Za-z]/g,'')" style="padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); background:rgba(0,0,0,0.45); color:#fff; font-size:1rem;">
+                        <input type="text" id="loginUsername" placeholder="Введіть нік" style="padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); background:rgba(0,0,0,0.45); color:#fff; font-size:1rem;">
 
                         <label style="color:var(--text-main); font-weight:700;">Пароль</label>
                         <div class="password-field-wrapper">
@@ -3550,8 +3550,8 @@
                 showToast('Заповніть, будь ласка, нік.', 'error');
                 return;
             }
-            if (!/^[A-Za-z]{3,}$/.test(username)) {
-                showToast('Нік має містити лише англійські букви (мінімум 3 символи).', 'error');
+            if (username.length < 3) {
+                showToast('Нік повинен містити мінімум 3 символи.', 'error');
                 return;
             }
             const normalizedUsername = normalizeUsername(username);
@@ -3587,12 +3587,12 @@
                 showToast('Заповніть всі поля для реєстрації.', 'error');
                 return;
             }
-            if (!/^[A-Za-z]{3,}$/.test(username)) {
-                showToast('Нік має містити лише англійські букви (мінімум 3 символи).', 'error');
+            if (username.length < 3) {
+                showToast('Нік повинен містити мінімум 3 символи.', 'error');
                 return;
             }
-            if (!/^[A-Za-z0-9]{4,}$/.test(password)) {
-                showToast('Пароль повинен містити мінімум 4 символи: англійські літери або цифри.', 'error');
+            if (password.length < 4) {
+                showToast('Пароль повинен містити мінімум 4 символи.', 'error');
                 return;
             }
             if (password !== confirm) {
