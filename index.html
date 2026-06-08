@@ -109,6 +109,7 @@
             letter-spacing: 2px;
             margin-bottom: 80px;
             background: linear-gradient(135deg, #ffffff 40%, var(--neon-cyan) 100%);
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-shadow: 0 0 40px rgba(0, 242, 254, 0.25);
@@ -246,6 +247,12 @@
         }
 
         .modal-overlay.active { opacity: 1; pointer-events: all; }
+
+        body.modal-open, html.modal-open {
+            overflow: hidden !important;
+            height: 100% !important;
+            touch-action: none !important;
+        }
 
         .modal-content {
             background: transparent;
@@ -917,9 +924,10 @@
         #orderAmount::-webkit-outer-spin-button,
         #orderAmount::-webkit-inner-spin-button {
             -webkit-appearance: none;
+            appearance: none;
             margin: 0;
         }
-        #orderAmount { -moz-appearance: textfield; }
+        #orderAmount { appearance: textfield; -moz-appearance: textfield; }
         .receipt-header { text-align: center; margin-bottom: 6px; }
         .receipt-title { font-size: 1.15rem; font-weight: 800; color: var(--neon-cyan); text-shadow: 0 0 12px rgba(0,242,254,0.12); }
         .receipt-sub { font-size: 0.75rem; color: rgba(255,255,255,0.18); letter-spacing: 1px; margin-top: 4px; }
@@ -1350,9 +1358,9 @@
             <div id="currentUserStatus" style="color:var(--text-muted); font-size:1rem;">Немає активного користувача</div>
             <button id="logoutButton" class="auth-btn" style="display:none;" onclick="logoutUser()">
                 <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                    <path d="M9 6l-1.5 1.5L11 12l-3.5 4.5L9 18"/>
-                    <path d="M13 12h8"/>
-                    <path d="M13 5v14"/>
+                    <path d="M16 17l5-5-5-5"/>
+                    <path d="M21 12H9"/>
+                    <path d="M9 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/>
                 </svg>
                 Вийти
             </button>
@@ -1442,7 +1450,7 @@
                 <div id="registerTabContent" style="display:block;">
                     <div style="display:flex; flex-direction:column; gap:14px; margin-top:6px;">
                         <label style="color:var(--text-main); font-weight:700;">Нік</label>
-                        <input type="text" id="registerUsername" placeholder="Введіть нік" style="padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); background:rgba(0,0,0,0.45); color:#fff; font-size:1rem;">
+                        <input type="text" id="registerUsername" placeholder="Введіть нік" oninput="this.value=this.value.replace(/[^A-Za-z]/g,'')" style="padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); background:rgba(0,0,0,0.45); color:#fff; font-size:1rem;">
 
                         <label style="color:var(--text-main); font-weight:700;">Пароль</label>
                     <div class="password-field-wrapper">
@@ -1468,7 +1476,7 @@
                 <div id="loginTabContent" style="display:none;">
                     <div style="display:flex; flex-direction:column; gap:14px; margin-top:6px;">
                         <label style="color:var(--text-main); font-weight:700;">Нік</label>
-                        <input type="text" id="loginUsername" placeholder="Введіть нік" style="padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); background:rgba(0,0,0,0.45); color:#fff; font-size:1rem;">
+                        <input type="text" id="loginUsername" placeholder="Введіть нік" oninput="this.value=this.value.replace(/[^A-Za-z]/g,'')" style="padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); background:rgba(0,0,0,0.45); color:#fff; font-size:1rem;">
 
                         <label style="color:var(--text-main); font-weight:700;">Пароль</label>
                         <div class="password-field-wrapper">
@@ -1842,15 +1850,31 @@
 
         function markAuthPromptShown() {
             try {
+                localStorage.setItem('courtAuthPromptHidden', '1');
                 sessionStorage.setItem('courtAuthPromptHidden', '1');
+                localStorage.removeItem('courtAuthLoggedOut');
+                sessionStorage.removeItem('courtAuthLoggedOut');
             } catch (e) {
                 console.warn('Could not save auth prompt state', e);
             }
         }
 
+        function markAuthLogoutState() {
+            try {
+                localStorage.setItem('courtAuthLoggedOut', '1');
+                sessionStorage.setItem('courtAuthLoggedOut', '1');
+                localStorage.removeItem('courtAuthPromptHidden');
+                sessionStorage.removeItem('courtAuthPromptHidden');
+            } catch (e) {
+                console.warn('Could not save auth logout state', e);
+            }
+        }
+
         function isAuthPromptAllowed() {
             try {
-                return sessionStorage.getItem('courtAuthPromptHidden') !== '1';
+                const wasLoggedOut = localStorage.getItem('courtAuthLoggedOut') === '1' || sessionStorage.getItem('courtAuthLoggedOut') === '1';
+                const promptHidden = localStorage.getItem('courtAuthPromptHidden') === '1' || sessionStorage.getItem('courtAuthPromptHidden') === '1';
+                return wasLoggedOut || !promptHidden;
             } catch (e) {
                 return true;
             }
@@ -2154,6 +2178,7 @@
             } catch (e) {
                 // ignore
             }
+            markAuthLogoutState();
             updateUserUI();
             closeModal();
             closeNewsModal();
@@ -2431,6 +2456,7 @@
             }
 
             document.getElementById('modalOverlay').classList.add('active');
+            updateBodyScrollLock();
         }
 
         // Рендеринг списку транзакцій
@@ -2905,9 +2931,27 @@
             ];
             map.forEach(([id,key]) => { const el = document.getElementById(id); if (el) el.checked = !!source[key]; });
             overlay.style.display = 'flex'; overlay.classList.add('active');
+            updateBodyScrollLock();
         }
 
-        function closeAdminMini() { const o = document.getElementById('adminMiniModal'); if (!o) return; o.classList.remove('active'); o.style.display = 'none'; }
+        function closeAdminMini() { const o = document.getElementById('adminMiniModal'); if (!o) return; o.classList.remove('active'); o.style.display = 'none'; updateBodyScrollLock(); }
+
+        function updateBodyScrollLock() {
+            const overlays = Array.from(document.querySelectorAll('.modal-overlay, .order-window-overlay, .order-receipt-overlay'));
+            const isAnyOpen = overlays.some(el => {
+                if (!el) return false;
+                if (el.classList.contains('active')) return true;
+                const style = window.getComputedStyle(el);
+                return style.display !== 'none' && style.visibility !== 'hidden' && parseFloat(style.opacity) > 0;
+            });
+            if (isAnyOpen) {
+                document.documentElement.classList.add('modal-open');
+                document.body.classList.add('modal-open');
+            } else {
+                document.documentElement.classList.remove('modal-open');
+                document.body.classList.remove('modal-open');
+            }
+        }
 
         function confirmAdminMini() {
             if (!currentUserCan('manageAdminPermissions')) { alert('Немає прав змінювати права адміністраторів.'); return; }
@@ -2942,6 +2986,7 @@
             const overlay = document.getElementById('orderWindowOverlay');
             if (!overlay) return;
             overlay.classList.add('active');
+            updateBodyScrollLock();
             const success = document.getElementById('orderSuccessMessage');
             if (success) success.style.display = 'none';
             const nick = document.getElementById('orderRobloxNickname');
@@ -3043,6 +3088,7 @@
             if (!overlay) return;
             overlay.style.display = 'flex';
             overlay.classList.add('active');
+            updateBodyScrollLock();
         }
 
         function closeAuditModal() {
@@ -3050,6 +3096,7 @@
             if (!overlay) return;
             overlay.classList.remove('active');
             overlay.style.display = 'none';
+            updateBodyScrollLock();
         }
 
         function renderAuditLog() {
@@ -3075,6 +3122,7 @@
             if (!overlay) return;
             overlay.style.display = 'flex';
             overlay.classList.add('active');
+            updateBodyScrollLock();
         }
 
         function closeManageOrders() {
@@ -3082,12 +3130,14 @@
             if (!overlay) return;
             overlay.classList.remove('active');
             overlay.style.display = 'none';
+            updateBodyScrollLock();
         }
 
         function closeOrderReceipt() {
             const overlay = document.getElementById('orderReceiptOverlay');
             if (!overlay) return;
             overlay.classList.remove('active');
+            updateBodyScrollLock();
         }
 
         function renderManageOrders() {
@@ -3183,6 +3233,7 @@
             const overlay = document.getElementById('orderWindowOverlay');
             if (!overlay) return;
             overlay.classList.remove('active');
+            updateBodyScrollLock();
         }
 
         function submitOrderRequest() {
@@ -3324,6 +3375,7 @@
             overlay.style.display = 'flex';
             modalContent.style.transform = 'scale(1)';
             modalContent.style.opacity = '1';
+            updateBodyScrollLock();
             setTimeout(() => {
                 const titleInput = document.getElementById('newsModalTitle');
                 if (titleInput) titleInput.focus();
@@ -3338,6 +3390,7 @@
             overlay.style.opacity = '0';
             modalContent.style.transform = 'scale(0.95)';
             modalContent.style.opacity = '0';
+            updateBodyScrollLock();
         }
 
         function handleModalOverlayClick() {
@@ -3349,6 +3402,7 @@
         function closeModal() {
             document.getElementById('modalOverlay').classList.remove('active');
             modalOverlayClosable = true;
+            updateBodyScrollLock();
         }
 
         function openLoginModal(defaultTab = 'register') {
@@ -3357,6 +3411,7 @@
             overlay.style.display = 'flex';
             overlay.style.zIndex = '9999';
             overlay.classList.add('active');
+            updateBodyScrollLock();
             switchLoginTab(defaultTab);
             setTimeout(() => {
                 const inputId = defaultTab === 'login' ? 'loginUsername' : 'registerUsername';
@@ -3368,12 +3423,31 @@
             }, 120);
         }
 
+        function isLogoutState() {
+            try {
+                return localStorage.getItem('courtAuthLoggedOut') === '1' || sessionStorage.getItem('courtAuthLoggedOut') === '1';
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function clearAuthLogoutState() {
+            try {
+                localStorage.removeItem('courtAuthLoggedOut');
+                sessionStorage.removeItem('courtAuthLoggedOut');
+            } catch (e) {
+                // ignore
+            }
+        }
+
         function closeLoginModal() {
             const overlay = document.getElementById('loginModalOverlay');
             if (!overlay) return;
             overlay.classList.remove('active');
-            markAuthPromptShown();
-            setTimeout(() => { overlay.style.display = 'none'; }, 360);
+            if (!isLogoutState()) {
+                markAuthPromptShown();
+            }
+            setTimeout(() => { overlay.style.display = 'none'; updateBodyScrollLock(); }, 360);
         }
 
         function openPlayersModal() {
@@ -3407,6 +3481,7 @@
             }
 
             document.getElementById('modalOverlay').classList.add('active');
+            updateBodyScrollLock();
         }
 
         function switchLoginTab(tab) {
@@ -3475,6 +3550,10 @@
                 showToast('Заповніть, будь ласка, нік.', 'error');
                 return;
             }
+            if (!/^[A-Za-z]{3,}$/.test(username)) {
+                showToast('Нік має містити лише англійські букви (мінімум 3 символи).', 'error');
+                return;
+            }
             const normalizedUsername = normalizeUsername(username);
             const user = users.find(u => normalizeUsername(u.username) === normalizedUsername);
             if (!user) {
@@ -3483,6 +3562,7 @@
             }
             if (user.password === '' && password === '') {
                 setCurrentUser(user);
+                clearAuthLogoutState();
                 updateUserUI();
                 closeLoginModal();
                 showToast('Ви увійшли в акаунт як ' + user.username + '.', 'success');
@@ -3493,6 +3573,7 @@
                 return;
             }
             setCurrentUser(user);
+            clearAuthLogoutState();
             updateUserUI();
             closeLoginModal();
             showToast('Ви увійшли в акаунт як ' + user.username + '.', 'success');
@@ -3504,6 +3585,10 @@
             const confirm = document.getElementById('registerPasswordConfirm').value.trim();
             if (!username || !password || !confirm) {
                 showToast('Заповніть всі поля для реєстрації.', 'error');
+                return;
+            }
+            if (!/^[A-Za-z]{3,}$/.test(username)) {
+                showToast('Нік має містити лише англійські букви (мінімум 3 символи).', 'error');
                 return;
             }
             if (!/^[A-Za-z0-9]{4,}$/.test(password)) {
@@ -3530,6 +3615,7 @@
             saveUsers();
             // Автоматично залогінити користувача після реєстрації
             setCurrentUser(newUser);
+            clearAuthLogoutState();
             updateUserUI();
             document.getElementById('registerUsername').value = '';
             document.getElementById('registerPassword').value = '';
@@ -3637,14 +3723,13 @@
             // when the current session is explicitly the special admin email.
             updateUserUI();
 
-// Якщо користувач не авторизований, показуємо форму входу або реєстрації при першому завантаженні.
-                if (!currentUser && isAuthPromptAllowed()) {
+// Якщо користувач не авторизований, показуємо форму входу або реєстрації при кожному завантаженні.
+                if (!currentUser) {
                     const hasRegisteredUser = users && users.some(u => !isSpecialAdmin(u.username));
                     const defaultAuthTab = hasRegisteredUser ? 'login' : 'register';
                     setTimeout(() => {
                         openLoginModal(defaultAuthTab);
-                        markAuthPromptShown();
-                }, 300);
+                    }, 300);
             }
 
             // Спочатку ховаємо модальне вікно для додавання новини
